@@ -1,0 +1,228 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Application xmlns:fx="http://ns.adobe.com/mxml/2009"
+					   xmlns:s="library://ns.adobe.com/flex/spark"
+					   xmlns:mx="library://ns.adobe.com/flex/mx"
+					   xmlns:djs="services.djs.*"
+					   xmlns:mixes="services.mixes.*"
+					   xmlns:valueObjects="valueObjects.*"
+					   xmlns:views="views.*"
+					   width="700" height="575" backgroundColor="#000000"
+					   applicationComplete="init()">
+	
+	<fx:Script>
+		<![CDATA[
+			import events.EditMixEvent;
+			import events.LoginEvent;
+			import events.SaveDJEvent;
+			import events.SaveDJMixEvent;
+			import events.createMixEvent;
+			import events.getDJEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.containers.ViewStack;
+			import mx.controls.Alert;
+			import mx.events.IndexChangedEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			
+			
+			protected function init():void
+			{
+				
+				
+			}
+			
+			[Bindable]
+			private var djId:Number;
+			[Bindable]
+			private var MessageText:String = "";
+			[Bindable]
+			private var passwordText:String = "";
+			[Bindable]
+			private var usernameText:String = "";
+			[Bindable]
+			private var mixComplete:Number;
+			[Bindable]
+			private var djNameText:String = "Test";
+			[Bindable]
+			private var firstNameText:String;
+			[Bindable]
+			private var lastNameText:String;
+			[Bindable]
+			private var bioText:String;
+			[Bindable]
+			private var emailText:String;
+			[Bindable]
+			private var djImage:String = 'assets/placeHolderDJBig.png';
+			[Bindable]
+			private var mixObject:Object;
+			[Bindable]
+			public var mixFile:String = 'Not Uploaded Yet';
+			[Bindable]
+			public var mixImage:String = 'assets/placeHolderMix.png';
+			private function loginView_login2Handler(event:LoginEvent):void
+			{
+				LoginResult.addEventListener(ResultEvent.RESULT,onLogin);
+				LoginResult.token = dJs.Login(event.username, event.password);
+				passwordText = event.password;
+				usernameText = event.username;
+				
+			}
+			
+			protected function onLogin(event:ResultEvent):void
+			{
+				
+				if(loginStruct.SUCCESS == "1")
+				{
+					djId = loginStruct.ID;
+					MessageText = '';
+					managerMainView.getMixesResult.token = mixes.getMixes(djId);
+					appStack.selectedIndex = 1;
+				}
+				else
+				{
+					MessageText = loginStruct.MESSAGE;
+					
+				}
+			}
+			
+			
+			protected function onGetDJ(event:ResultEvent):void
+			{
+				
+				djNameText = event.result[0].djName;
+				firstNameText = event.result[0].firstName;
+				lastNameText = event.result[0].lastName;
+				bioText = event.result[0].bio;
+				emailText = event.result[0].email;
+				if (event.result[0].imageBig != null)
+				{
+					djImage = event.result[0].imageBig;
+				}
+				else
+				{
+					djImage = "assets/placeHolderDJBig.png";
+				}
+				
+			}
+			
+			protected function appStack_changeHandler(event:IndexChangedEvent):void
+			{
+				getDJResult.addEventListener(ResultEvent.RESULT,onGetDJ);
+				getDJResult.token = dJs.getDJ(djId);
+			}
+			
+			protected function editProfileView_saveDjFormHandler(event:SaveDJEvent):void
+			{
+				saveDJResult.addEventListener(ResultEvent.RESULT,onSaveDJ);
+				saveDJResult.token = dJs.saveDJ(djId, event.djName, event.firstName, event.lastName, event.bioText, event.emailText);
+				
+			}
+			protected function onSaveDJ(event:ResultEvent):void
+			{
+				appStack.selectedIndex = 1;
+			}
+			
+			
+			protected function managerMainView_editSelectedMixHandler(event:EditMixEvent):void
+			{
+				mixObject = event.mixObject;
+				mixFile = mixObject.mixFileUser;
+				mixComplete = mixObject.complete;
+				if (mixComplete == 2)
+				{
+					editMixView.currentState = 'awaiting';
+				}
+				else if (mixComplete == 1)
+				{
+					editMixView.currentState = 'encoded';
+				}
+				else
+				{
+					editMixView.currentState = 'showreadybox';
+				}
+				appStack.selectedIndex = 3;
+				
+				
+				
+			}
+			
+			protected function managerMainView_addNewMixHandler(event:createMixEvent):void
+			{
+				createMixResult.addEventListener(ResultEvent.RESULT,onCreatemix);
+				createMixResult.token = mixes.createMix(djId);
+				
+			}
+			
+			protected function onCreatemix(event:ResultEvent):void
+			{
+				mixObject = event.result[0];
+				mixFile = mixObject.mixFileUser;
+				editMixView.currentState = 'showreadybox';
+				appStack.selectedIndex = 3;
+				
+			}
+			
+			protected function editMixView_SaveMixHandler(event:SaveDJMixEvent):void
+			{
+				saveMixResult.addEventListener(ResultEvent.RESULT,onSaveDJMix);
+				saveMixResult.token = mixes.saveMix(event.mixID, event.mixName, event.mixYear, event.mixGenre, event.mixDesc, event.readyTobeEncoded);
+			}
+			
+			
+			protected function onSaveDJMix(event:ResultEvent):void
+			{
+				appStack.selectedIndex = 1;
+				managerMainView.getMixesResult.token = mixes.getMixes(djId);
+			}
+			
+		]]>
+	</fx:Script>
+	
+	<fx:Declarations>
+		<djs:DJs id="dJs"
+				 fault="Alert.show(event.fault.faultString + '\n' + event.fault.faultDetail)"
+				 showBusyCursor="true"/>
+		<s:CallResponder id="LoginResult" 
+						 result="loginStruct = LoginResult.lastResult as LoginStruct"/>
+		<valueObjects:LoginStruct id="loginStruct"/>
+		
+		
+		
+		<s:CallResponder id="getDJResult" 
+						 result="djStruct = getDJResult.lastResult as DJStruct"/>
+		<valueObjects:DJStruct id="djStruct"/>
+		<s:CallResponder id="saveDJResult"/>
+		<s:CallResponder id="createMixResult"/>
+		<mixes:Mixes id="mixes"
+					 fault="Alert.show(event.fault.faultString + '\n' + event.fault.faultDetail)"
+					 showBusyCursor="true"/>
+		<s:CallResponder id="saveMixResult"/>
+		
+		
+		
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	<mx:ViewStack id="appStack" x="6" y="6" width="687" height="558" borderVisible="false" change="appStack_changeHandler(event)" >
+		<views:LoginView width="100%" height="100%" label="LoginView" id="loginView"  login2="loginView_login2Handler(event)" 
+						 MessageText="{MessageText}" usernameText="{usernameText}" passwordText="{passwordText}" >
+		</views:LoginView>
+		<views:ManagerMainView width="100%" height="100%" label="ManagerMainView" id="managerMainView" 
+							   djId="{djId}" djNameText="{djNameText}" djImage="{djImage}"
+							   editSelectedMix="managerMainView_editSelectedMixHandler(event)"
+							   addNewMix="managerMainView_addNewMixHandler(event)">
+		</views:ManagerMainView>
+		<views:EditProfileView width="100%" height="100%" label="EditProfileView" id="editProfileView"
+							   djId="{djId}" djNameText="{djNameText}" firstNameText="{firstNameText}" 
+							   lastNameText="{lastNameText}" bioText="{bioText}" djImage="{djImage}" emailText="{emailText}"
+							   saveDjForm="editProfileView_saveDjFormHandler(event)"
+							   >
+		</views:EditProfileView>
+		<views:EditMixView width="100%" height="100%" label="EditMixView" id="editMixView" 
+						   mixObject="{mixObject}" djId="{djId}" mixFile="{mixObject.mixFileUser}"  mixImage="{mixObject.mixImageBig}"
+						   mixComplete="{mixObject.complete}"
+						   SaveMix="editMixView_SaveMixHandler(event)">
+		</views:EditMixView>
+		
+	</mx:ViewStack>
+</s:Application>
